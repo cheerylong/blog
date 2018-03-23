@@ -80,5 +80,5 @@ theme: maupassant
 deploy:
   type: git
   repository: https://github.com/cheerylong/blog.git
-  branch: gh-pages
+  branch: master
 
