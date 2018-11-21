@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<style>
+		.container {
+			width: 200px;
+			height: 200px;
+			border: 2px #2196F3 solid
+		}
+		.container .center {
+			width: 50px;
+			height: 50px;
+			background-color: #FFC107;
+		}
+		/*方式1: flex*/
+		.container1 {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+		/*方式2: absolute;*/
+		.container2 {
+			position: relative;
+		}
+		.container2 .center {
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			margin-left: -25px;
+			margin-top: -25px;
+		}
+		/*方式3*/
+		.container3 {
+			position: relative;
+		}
+		.container3 .center {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			margin: auto;
+		}
+		/*方式4*/
+		.container4 {
+			position: relative;
+		}
+		.container4 .center {
+			position: absolute;
+			top: calc(50% - 25px);  /*注意加空格*/
+			left: calc(50% - 25px);
+		}
+		/*方式5  translate是基于自身偏移的*/ 
+		.container5 {
+			position: relative;
+		}
+		.container5 .center {
+			position: absolute;
+			top: 50%;  /*注意加空格*/
+			left: 50%;
+			transform: translate(-50%, -50%);
+		}	
+		/*方式6	*/		
+		.container6 {
+			line-height: 200px;
+			text-align: center;
+			font-size: 0px;
+		}
+		.container6 .center {
+			display: inline-block;
+			vertical-align: middle;
+		}
+		/*方式7*/
+		.container7 {
+			display: table-cell;
+			text-align: center;
+			vertical-align: middle;
+		}
+		.center {
+			display: inline-block;
+		}
+		/*方式8*/
+		.container8 {
+			display: grid;
+		}
+		.container8 .center {
+		   align-self: center;
+		   justify-self: center;			
+		}
+	</style>
+</head>
+<body>
+	
+	<h3>居中的几种写法：</h3>
+
+	<div class="container container1">
+		<div class="center">
+			absolute大法好
+		</div>
+	</div>
+	<div class="container container2">
+		<div class="center">
+			absolute大法好
+		</div>
+	</div>
+	<div class="container container3">
+		<div class="center">
+			absolute大法好
+		</div>
+	</div>
+	<div class="container container4">
+		<div class="center">
+			absolute大法好
+		</div>
+	</div>
+	<div class="container container5">
+		<div class="center">
+			absolute大法好
+		</div>
+	</div>	
+	<div class="container container6">
+		<div class="center"></div>
+	</div>
+	<div class="container container7">
+		<div class="center"></div>
+	</div>	
+	<div class="container container8">
+		<div class="center"></div>
+	</div>
+</body>
+</html>
