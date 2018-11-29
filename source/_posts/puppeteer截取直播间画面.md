@@ -5,7 +5,8 @@ categories: 工具
 tags: 工具
 toc: true
 ---
-前几天有个同学问起如何实现截取直播间的图片，分析直播内容，当时就想到了用无头浏览器实现。正好之前了解过 `Puppeteer` 推荐他使用了该工具，后来他用类似的 `Pyppeteer` 实现了该需求，出于好奇我使用 `Puppeteer` 实现了一版，也顺便过了一遍 [puppeteer](https://zhaoqize.github.io/puppeteer-api-zh_CN/) 文档，仔细了解了一下各个功能，作此文总结。
+
+前几天有个同学问起如何实现自动截取直播间的图片，分析直播内容，当时就想到了用无头浏览器实现。正好之前了解过 [Puppeteer](https://github.com/GoogleChrome/puppeteer/) 推荐他使用了该工具，后来他用类似的 [Pyppeteer](https://github.com/miyakogi/pyppeteer) 实现了该需求，出于好奇我使用 `Puppeteer` 也实现了一版，也顺便过了一遍 [puppeteer](https://zhaoqize.github.io/puppeteer-api-zh_CN/) 得文档，仔细了解了一下它的各个功能，作此文总结。
 
 ## Puppeteer介绍
 
@@ -110,44 +111,78 @@ toc: true
 
   4. 保存图片至指定文件夹
 
-  看逻辑分析还是蛮简单的，下面是实现代码，我也上传到了[github](https://github.com/cheerylong/liveRoom_screenShot)
+  看逻辑分析还是蛮简单的，下面是实现代码，完整代码我也上传到了[github](https://github.com/cheerylong/liveRoom_screenShot)
+
+### 代码实现
+
+
+#### 获取直播间链接
+
+这一块用到了 `page.$$eval` 从直播主页上爬取直播间链接 并且返回链接列表
+
+````javascript
+
+/**
+ * 获取房间链接列表
+ * @Author   cheerylong
+ * @DateTime 2018-11-21
+ * @return   {[type]}   [description]
+ */
+async function getRoomList(homePage) {
+    return await homePage.$$eval('.m-lc1Dft-YP9>a', (rooms = []) => {
+        let urls = [];
+        rooms.forEach(room => {
+            urls.push(room.href);
+        });
+        return urls
+    })
+}
+
+
+````
+
+#### 循环打开直播间
+
+ 在页面 `domContentloaded` 后，我们用上一步拿到的房间链接**循环**打开页面去截图，需要注意的是同一个浏览器打开的直播窗口过多，后续的直播间就无法加载出来（原因目前为止，猜测是网络原因）。所以如果浏览器打开窗口达到设置的上限需要新开浏览器。
 
 
 ````javascript
 
+    let browser = await puppeteer.launch(launchConfig);
+    const homePage = await browser.newPage();
 
-const puppeteer = require('puppeteer');
-const fs = require('fs');
+    // 获取首页所有直播间链接
+    homePage.once('domcontentloaded', async () => {
 
-// 常量定义
-const host = 'https://look.163.com'; // 直播平台域名
-const homeHost = `${host}/hot`; // 直播间首页地址
-const isLoop = true; // 是否需要循环截取同一直播间的图片
-const loopTime = 10000; // 循环间隔
-const openedNum = 7; // 一个浏览器实例只能打开的直播间个数
-const endCondition = false; // 什么情况下结束程序? 
-const loadingTime = 10000; // 等直播加载出来 视网络情况调整
-const playBtnShowTime = 5000; // 等播放按钮加载出来
-const launchConfig = {
-    headless: true,
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    slowMo: 100,
-    args: []
-}
+        console.log('直播首页加载完成');
 
-// 生成文件目录
-function createDir(dirName = '') {
-    if (!fs.existsSync(`screenShot/${dirName}`)) {
-        fs.mkdirSync(`screenShot/${dirName}`);
-    }
-}
+        await homePage.waitFor(1000);
+        let roomList = await getRoomList(homePage)
 
-// 从链接获取房间号
-function getRoomId(roomLink = '') {
-    if (!roomLink) return ''
-    return roomLink.split('?')[1].split('&')[0].split('=')[1]
-}
+        console.log('所有直播间:' + roomList);
 
+        for (let num = 0; num < roomList.length; num++) {
+            if (((num + 1) % openedNum) === 1 && num !== 0) {
+                // 打开定量窗口后 新开一个浏览器
+                browser = await puppeteer.launch(launchConfig);
+            }
+            let page = await browser.newPage()
+            handleRoomScreenShot(page, roomList[num], browser, (num && ((num + 1) % openedNum === 0)), num);
+        }
+    })
+    await homePage.goto(homeHost, {
+        waitUntil: ['domcontentloaded']
+    })
+
+
+````
+
+#### 截图并保存
+
+
+这一步，我们已经进入直播间，等待一定时间等直播加载出现，准备开始截图。为了准确的截到直播界面，我们需要通过 `page.$eval` 拿到直播画面的位置信息再进行截图保存，保存之前需要先检测保存目录是否存在，我这里命名是以房间号命名，以时间戳为文件名。
+
+````javascript
 
 /**
  * 处理直播间截图
@@ -165,6 +200,7 @@ async function handleRoomScreenShot(page, roomLink, browser, isEnd, num) {
     await page.waitFor(loadingTime)
     await page.click('#lvp_player_private_portal_id_private > div > i') // 点击播放按钮
     await page.waitFor(playBtnShowTime)
+    // 获取直播画面位置信息
     let videoInfo = await page.$eval('.m-lvp-container>video', (el) => {
         return {
             x: el.getBoundingClientRect().x,
@@ -197,59 +233,8 @@ async function handleRoomScreenShot(page, roomLink, browser, isEnd, num) {
     }
 };
 
-/**
- * 获取房间链接列表
- * @Author   cheerylong
- * @DateTime 2018-11-21
- * @return   {[type]}   [description]
- */
-async function getRoomList(homePage) {
-    return await homePage.$$eval('.m-lc1Dft-YP9>a', (rooms = []) => {
-        let urls = [];
-        rooms.forEach(room => {
-            urls.push(room.href);
-        });
-        return urls
-    })
-}
-
-/**
- * 程序入口
- * @Author   cheerylong
- * @DateTime 2018-11-20
- * @return   {[type]}   [description]
- */
-async function start() {
-    let browser = await puppeteer.launch(launchConfig);
-    const homePage = await browser.newPage();
-
-    // 获取首页所有直播间链接
-    homePage.once('domcontentloaded', async () => {
-
-        console.log('直播首页加载完成');
-
-        await homePage.waitFor(1000);
-        let roomList = await getRoomList(homePage)
-
-        console.log('所有直播间:' + roomList);
-
-        for (let num = 0; num < roomList.length; num++) {
-            if (((num + 1) % openedNum) === 1 && num !== 0) {
-                // 打开定量窗口后 新开一个浏览器
-                browser = await puppeteer.launch(launchConfig);
-            }
-            let page = await browser.newPage()
-            handleRoomScreenShot(page, roomList[num], browser, (num && ((num + 1) % openedNum === 0)), num);
-        }
-    })
-    await homePage.goto(homeHost, {
-        waitUntil: ['domcontentloaded']
-    })
-}
-
-start();
-
 ````
+
 
 抓取后的截图，按房间号分开保存：
 ![result.png](puppeteer截取直播间画面/result.png)
