@@ -2,7 +2,7 @@
 title: js实现sleep
 date: 2018-3-29 20:42:14
 tags: JavaScript
-categories: js
+categories: JavaScript
 toc: true
 ---
 
